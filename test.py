@@ -29,36 +29,58 @@ def get_or_insert_coin(coin_name):
         cursor.execute("INSERT INTO coin (name) VALUES (%s)", (coin_name,))
         return cursor.lastrowid
 
-# Process messages and filter for predictions and verifications
 messages = data['messages']
 num_messages = len(messages)
 # num_messages = 100
 
-
+# Process messages and filter for predictions and verifications
 for i in range(num_messages):
     message = messages[i]
-    # Check if the message is a prediction (type 4: prediction message)
-    # if 'text' in message and isinstance(message['text'], list):
+    # Check if the message is a prediction
     if 'text' in message and message["text_entities"]:
         # Ensure this is a prediction with a coin name (starts with '🪙')
-        if "text_entities" in message and message["text_entities"][0]["text"][0] == '🪙':
+        if message["text_entities"][0]["text"][0] == '🪙':
             # coin_name = message['text'][0].split('/')[0].strip('🪙 ')
-            coin_name = message["text_entities"][0]["text"].split('/')[0].strip('🪙 ')
+            text =  message["text_entities"][0]["text"]
+            splitted = text.split('/')
+            if len(splitted) > 1:
+                coin_name = splitted[0].strip('🪙 ')
+            else:
+                splitted = text.split("\\")
+                if len(splitted) > 1:
+                    coin_name = splitted[0].strip('🪙 ')
+                else:
+                    coin_name = text.split('USDT')[0]
+
             # Get or insert the coin, and retrieve its coin_id
             coin_id = get_or_insert_coin(coin_name)
 
-            # try:
-            # # Determine prediction type (long or short)
-            #     if isinstance(message['text'], list):
-            #         prediction_type = 'long' if 'long' in message['text'][2].lower() else 'short'
-            #     else:
-            #         prediction_type = 'long' if 'long' in message['text'].lower() else 'short'
-            # except:
-            #     print(message['id'])
-            #     print(message['text'][2])
-            #     raise Exception("Sorry")
+            try:
+            # Determine prediction type (long or short)
+                if isinstance(message['text'], list):
+                    for m in message:
+                        if isinstance(m, dict):
+                            if ' long' in  m['text'].lower():
+                                prediction_type = 'long'
+                                break
+                            elif 'short' in m['text'].lower():
+                                prediction_type = 'short'
+                                break                            
+                        else:
+                            if ' long' in  m.lower():
+                                prediction_type = 'long'
+                                break
+                            elif 'short' in m.lower():
+                                prediction_type = 'short'
+                                break                              
+                else:
+                    prediction_type = 'long' if 'long' in message['text'].lower() else 'short'
+            except:
+                print(message['id'])
+                print(message['text'][2])
+                raise Exception("Key Error or Index Error")
+
             # Insert prediction data
-            prediction_type = 'long'
             cursor.execute("""
                 INSERT INTO Prediction (coin_id, type, predicted_at)
                 VALUES (%s, %s, %s)
